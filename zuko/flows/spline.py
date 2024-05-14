@@ -3,6 +3,7 @@ r"""Spline flows."""
 __all__ = [
     'NSF',
     'NCSF',
+    'NSF_custom',
 ]
 
 import torch
@@ -15,6 +16,49 @@ from .autoregressive import MAF
 from .core import Unconditional
 from ..distributions import BoxUniform
 from ..transforms import CircularShiftTransform, ComposedTransform, MonotonicRQSTransform
+
+def RQSTransform_custom(*phi, bound=10) -> Transform:
+    r"""Creates a custom rational-quadratic spline (RQS) transformation."""
+
+    return ComposedTransform(
+        MonotonicRQSTransform(*phi, bound=bound),
+    )
+
+class NSF_custom(MAF):
+    r"""Creates a custom neural spline flow (NSF) with monotonic rational-quadratic spline
+    transformations.
+
+    By default, transformations are fully autoregressive. Coupling transformations
+    can be obtained by setting :py:`passes=2`.
+
+    See also:
+        :class:`zuko.transforms.MonotonicRQSTransform`
+
+    References:
+        | Neural Spline Flows (Durkan et al., 2019)
+        | https://arxiv.org/abs/1906.04032
+
+    Arguments:
+        features: The number of features.
+        context: The number of context features.
+        bins: The number of bins :math:`K`.
+        kwargs: Keyword arguments passed to :class:`zuko.flows.autoregressive.MAF`.
+    """
+
+    def __init__(
+        self,
+        features: int,
+        context: int = 0,
+        bins: int = 8,
+        **kwargs,
+    ):
+        super().__init__(
+            features=features,
+            context=context,
+            univariate=RQSTransform_custom,
+            shapes=[(bins,), (bins,), (bins - 1,)],
+            **kwargs,
+        )
 
 
 class NSF(MAF):
